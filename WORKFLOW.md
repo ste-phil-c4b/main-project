@@ -9,8 +9,9 @@ This guide explains how to manage feature development when using git submodules 
 3. [Scenario 1: Feature in Submodule Only](#scenario-1-feature-in-submodule-only)
 4. [Scenario 2: Feature Spanning Main + Submodule](#scenario-2-feature-spanning-main--submodule)
 5. [Scenario 3: Cloning and Working with Submodules](#scenario-3-cloning-and-working-with-submodules)
-6. [Common Pitfalls](#common-pitfalls)
-7. [Best Practices](#best-practices)
+6. [Scenario 4: Branch Tracking for Feature Development](#scenario-4-branch-tracking-for-feature-development)
+7. [Common Pitfalls](#common-pitfalls)
+8. [Best Practices](#best-practices)
 
 ---
 
@@ -216,6 +217,113 @@ git submodule update --remote --merge
 
 ---
 
+## Scenario 4: Branch Tracking for Feature Development
+
+Use branch tracking when you want the parent project to easily stay in sync with a submodule's feature branch during active development.
+
+### Understanding Branch Tracking
+
+By default, submodules point to a specific commit SHA. With branch tracking, you configure a submodule to know which branch to follow, making it easier to fetch the latest commits.
+
+**Important:** The parent still stores a commit SHA, not a dynamic branch reference. Branch tracking just makes `git submodule update --remote` fetch the latest from the configured branch.
+
+### Step 1: Configure Branch Tracking
+
+Edit `.gitmodules` to add a branch configuration:
+
+```ini
+[submodule "libs/sub-lib-a"]
+    path = libs/sub-lib-a
+    url = https://github.com/ste-phil-c4b/sub-lib-a.git
+    branch = feature/my-feature
+```
+
+Or use the command:
+
+```bash
+git config -f .gitmodules submodule.libs/sub-lib-a.branch feature/my-feature
+```
+
+### Step 2: Update to Latest on Tracked Branch
+
+```bash
+# Update specific submodule to latest commit on its tracked branch
+git submodule update --remote libs/sub-lib-a
+
+# Or update all submodules to their tracked branches
+git submodule update --remote
+```
+
+### Step 3: Commit the Updated Reference
+
+```bash
+# The submodule now points to the latest commit on the tracked branch
+git add libs/sub-lib-a
+git commit -m "Update sub-lib-a to latest on feature branch"
+```
+
+### Workflow: Parallel Development with Branch Tracking
+
+This workflow is useful when actively developing in both repos simultaneously.
+
+```bash
+# 1. In submodule: create and push feature branch
+cd libs/sub-lib-a
+git checkout -b feature/new-api
+# ... make changes ...
+git commit -m "Add new API"
+git push -u origin feature/new-api
+
+# 2. In parent: create feature branch and configure tracking
+cd ../..
+git checkout -b feature/new-api
+git config -f .gitmodules submodule.libs/sub-lib-a.branch feature/new-api
+git add .gitmodules
+git commit -m "Track sub-lib-a feature branch"
+
+# 3. As submodule gets more commits, easily update parent
+git submodule update --remote libs/sub-lib-a
+git add libs/sub-lib-a
+git commit -m "Update sub-lib-a to latest"
+
+# 4. Before merging: switch back to main tracking
+git config -f .gitmodules submodule.libs/sub-lib-a.branch main
+# (after submodule PR is merged)
+git submodule update --remote libs/sub-lib-a
+git add .gitmodules libs/sub-lib-a
+git commit -m "Switch sub-lib-a back to main branch"
+```
+
+### Switching Tracked Branches
+
+```bash
+# Change which branch the submodule tracks
+git config -f .gitmodules submodule.libs/sub-lib-a.branch new-branch-name
+
+# Fetch and update to the new branch
+git submodule update --remote libs/sub-lib-a
+
+# Commit both changes
+git add .gitmodules libs/sub-lib-a
+git commit -m "Switch sub-lib-a to track new-branch-name"
+```
+
+### When to Use Branch Tracking vs. Manual Updates
+
+| Approach | Best For |
+|----------|----------|
+| **Branch Tracking** | Active parallel development, frequent submodule updates, team coordination on features |
+| **Manual Updates** | Production releases, explicit control, infrequent updates, auditing requirements |
+
+### Caveats
+
+1. **Not Automatic:** You still need to run `git submodule update --remote` and commit the result
+2. **PR Reviews:** Reviewers should check that `.gitmodules` branch changes are intentional
+3. **CI/CD:** Build systems typically use `git submodule update` (not `--remote`), so they get the pinned commit
+4. **Merge Conflicts:** Changing `.gitmodules` in multiple branches can cause merge conflicts
+
+---
+
 ## Common Pitfalls
 
 ### 1. Forgetting to Update Submodule Reference
@@ -329,6 +437,8 @@ Each submodule should have a clear, single responsibility. This makes:
 | Update to latest remote | `git submodule update --remote --merge` |
 | Check submodule status | `git submodule status` |
 | Run command in all submodules | `git submodule foreach '<command>'` |
+| Set tracked branch | `git config -f .gitmodules submodule.<path>.branch <branch>` |
+| Update from tracked branch | `git submodule update --remote <path>` |
 
 ---
 
