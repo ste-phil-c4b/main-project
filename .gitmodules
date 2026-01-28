@@ -1,0 +1,6 @@
+[submodule "libs/sub-lib-a"]
+	path = libs/sub-lib-a
+	url = https://github.com/ste-phil-c4b/sub-lib-a.git
+[submodule "libs/sub-lib-b"]
+	path = libs/sub-lib-b
+	url = https://github.com/ste-phil-c4b/sub-lib-b.git
